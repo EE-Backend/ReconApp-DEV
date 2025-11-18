@@ -1,3 +1,14 @@
+import os
+st.write("Current working directory:", os.getcwd())
+st.write("Files in CWD:", os.listdir())
+st.write("Files in static/:", os.listdir("static") if os.path.exists("static") else "static/ not found")
+
+
+
+
+
+
+
 import streamlit as st
 import pandas as pd
 from io import BytesIO
@@ -96,6 +107,7 @@ if generate_button:
 
 st.write("---")
 st.caption("EE Internal Tool — Powered by Streamlit")
+
 
 
 
