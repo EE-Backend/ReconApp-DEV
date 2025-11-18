@@ -164,12 +164,11 @@ def remove_internal_zeroes(df, tol=TOLERANCE):
         for j in range(i + 1, len(df)):
             if not keep[j]:
                 continue
-            same_doc = (df.loc[i, "Document No."] == df.loc[j, "Document No."])
             same_icp = (df.loc[i, "ICP CODE"] == df.loc[j, "ICP CODE"])
             same_gaap = (df.loc[i, "GAAP Code"] == df.loc[j, "GAAP Code"])
 
             # Only consider cancellation when all grouping keys match
-            if same_doc and same_icp and same_gaap and abs(df.loc[i, "Amount (LCY)"] + df.loc[j, "Amount (LCY)"]) <= tol:
+            if same_icp and same_gaap and abs(df.loc[i, "Amount (LCY)"] + df.loc[j, "Amount (LCY)"]) <= tol:
                 keep[i] = keep[j] = False
                 break
 
