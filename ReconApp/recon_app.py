@@ -16,30 +16,35 @@ LOGO_PATH = STATIC_DIR / "logo.png"
 # ============================================
 # CENTERED HEADER WITH LOGO + TITLE
 # ============================================
-st.markdown("""
-    <div style="display: flex; flex-direction: column; align-items: center;">
-""", unsafe_allow_html=True)
+from pathlib import Path
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+LOGO_PATH = STATIC_DIR / "logo.png"   # adjust filename if needed (logo.png / company_logo.png)
 
-# Logo
+# Try to show a centered row with logo left and title right but horizontally centered on page
+# Column widths: left spacer, logo col, title col, right spacer
+col_left, col_logo, col_title, col_right = st.columns([1, 1, 6, 1])
+
 if LOGO_PATH.exists():
-    st.markdown(
-        f"<img src='static/logo.png' style='width:130px; margin-bottom:5px;'>",
-        unsafe_allow_html=True
-    )
+    # Put image in the small column and title in the larger column
+    with col_logo:
+        # width controls size; change 110 -> smaller/larger
+        st.image(str(LOGO_PATH), width=110)
+
+    with col_title:
+        # left-align the title inside the title column, reduce margins so it's close to the logo
+        st.markdown(
+            "<h1 style='margin:0; padding-top:10px; text-align:left;'>Recon File Generator</h1>",
+            unsafe_allow_html=True,
+        )
 else:
-    st.warning("Logo file not found in /static folder.")
+    # If logo missing, show title centered instead and a warning
+    st.warning(f"⚠ Logo not found at: {LOGO_PATH}")
+    st.markdown("<h1 style='text-align:center;'>Recon File Generator</h1>", unsafe_allow_html=True)
 
-# Title
-st.markdown("""
-    <h1 style="margin-top:0px; padding-top:0px;">
-        Recon File Generator
-    </h1>
-""", unsafe_allow_html=True)
-
-st.markdown("</div>", unsafe_allow_html=True)
-
-# Small spacing before UI
-st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
+# small vertical gap before the rest of the UI
+st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
+# --- end header ---
 
 # ============================================
 # STEP 1 — INPUTS
@@ -93,4 +98,5 @@ if st.button("Generate Recon File", type="primary"):
     )
 
 st.caption("European Energy — Internal Tool")
+
 
