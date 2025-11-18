@@ -354,36 +354,36 @@ def build_workbook(trial_balance_df, entries_df, map_dir, acct_to_code, code_to_
                 row_cursor += 3
                 continue
 
-            # Special: bank/cash accounts 390000–399999 -> totals only with note (See documentation)
-            # Special: bank/cash accounts 390000–399999 -> totals only with note (See documentation)
-            if acc_no.isdigit() and 390000 <= int(acc_no) <= 399999:
-                net_sum = round(acc_df["Amount (LCY)"].sum(), 2)
-    
-                header_cell = ws.cell(row=row_cursor, column=1, value=f"{acc_no} - {acc_name}")
-                account_anchor[acc_no] = (ws.title, row_cursor)
-                header_cell.fill = green_fill if abs(net_sum - tb_bal) <= tolerance else red_fill
-                register_mismatch(acc_no, acc_name, tb_bal, net_sum, ws.title)
+        # Special: bank/cash accounts 390000–399999 -> totals only with note (See documentation)
+        if acc_no.isdigit() and 390000 <= int(acc_no) <= 399999:
+            net_sum = round(acc_df["Amount (LCY)"].sum(), 2)
 
-                row_cursor += 1
-                block_start = row_cursor
+            header_cell = ws.cell(row=row_cursor, column=1, value=f"{acc_no} - {acc_name}")
+            account_anchor[acc_no] = (ws.title, row_cursor)
+            header_cell.fill = green_fill if abs(net_sum - tb_bal) <= tolerance else red_fill
+            register_mismatch(acc_no, acc_name, tb_bal, net_sum, ws.title)
 
-                # First row: labels (Note header + Account Total label)
-                ws.cell(row=row_cursor, column=1, value="Note").font = Font(bold=True)
-                ws.cell(row=row_cursor, column=6, value="Account Total").font = Font(bold=True)
-                for c in range(1, 7):
+            row_cursor += 1
+            block_start = row_cursor
+
+            # First row: labels (Note header + Account Total label)
+            ws.cell(row=row_cursor, column=1, value="Note").font = Font(bold=True)
+            ws.cell(row=row_cursor, column=6, value="Account Total").font = Font(bold=True)
+            for c in range(1, 7):
                 ws.cell(row=row_cursor, column=c).fill = total_fill
-                row_cursor += 1
+            row_cursor += 1
 
             # Second row: content - (See documentation) + total
-                ws.cell(row=row_cursor, column=1, value="(See documentation)")
-                vcell = ws.cell(row=row_cursor, column=6, value=net_sum)
-                vcell.number_format = "#,##0.00"
-                for c in range(1, 7):
+            ws.cell(row=row_cursor, column=1, value="(See documentation)")
+            vcell = ws.cell(row=row_cursor, column=6, value=net_sum)
+            vcell.number_format = "#,##0.00"
+            for c in range(1, 7):
                 ws.cell(row=row_cursor, column=c).fill = entry_fill  # ✅ row=row_cursor
 
-                apply_borders(ws, block_start, row_cursor, 1, 6)
-                row_cursor += 3
-                continue
+            apply_borders(ws, block_start, row_cursor, 1, 6)
+            row_cursor += 3
+            continue
+
 
 
             # Normal accounts: show full list newest -> oldest
