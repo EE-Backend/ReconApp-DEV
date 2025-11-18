@@ -4,6 +4,8 @@ from pathlib import Path
 from io import BytesIO
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Border, Side
+from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.formatting.rule import FormulaRule
 import openpyxl.utils
 import time
 
@@ -643,6 +645,139 @@ def finalize_workbook_to_bytes(
             ws_front.cell(row_ptr, 2, r.get("Name", ""))
             val_cell = ws_front.cell(row_ptr, 3, r["Balance at Date"])
             val_cell.number_format = "#,##0.00"
+            row_ptr += 1
+  
+    # === Documentation checklist (account-based comments) ===
+    doc_rules = [
+        # Tangible fixed assets
+        (
+            [
+                (221110, 221450),
+                (222110, 222450),
+                (223110, 223450),
+                (224110, 224420),
+                (225110, 225450),
+            ],
+            "Add documentation for Tangible fixed assets",
+        ),
+        # Long-term receivables
+        (
+            [
+                (234110, 234310),
+            ],
+            "Add documentation for Long-term receivables",
+        ),
+        # Trade receivables
+        (
+            [
+                (311000, 311020),
+            ],
+            "Add documentation for Trade receivables",
+        ),
+        # Amounts owed by affiliate companies
+        (
+            [
+                (321000, 321100),
+            ],
+            "Add documentation for Amounts owed by affiliate companies",
+        ),
+        # Bank account
+        (
+            [
+                (391010, 391070),
+                (393005, 393998),
+            ],
+            "Add documentation for Bank account",
+        ),
+        # Mortgage credit institutions
+        (
+            [
+                (621000, 628800),
+            ],
+            "Add documentation for Mortgage credit institutions",
+        ),
+        # Trade payables
+        (
+            [
+                (721000, 721001),
+            ],
+            "Add documentation for Trade payables",
+        ),
+        # Amounts owed to affiliated companies
+        (
+            [
+                (731000, 731100),
+            ],
+            "Add documentation for Amounts owed to affiliated companies",
+        ),
+    ]
+
+    def _in_any_range(acc_int, ranges):
+        return any(lo <= acc_int <= hi for lo, hi in ranges)
+
+    # Build list of documentation items based on TB balances
+    doc_items = []
+    for _, r in trial_balance_df.iterrows():
+        acc_str = str(r["No."])
+        if not acc_str.isdigit():
+            continue
+
+        acc_int = int(acc_str)
+        bal = r.get("Balance at Date", 0.0) or 0.0
+        if abs(bal) <= tolerance:
+            continue  # no balance -> no documentation needed
+
+        for ranges, message in doc_rules:
+            if _in_any_range(acc_int, ranges):
+                doc_items.append(
+                    {
+                        "No": acc_str,
+                        "Name": r.get("Name", ""),
+                        "Message": message,
+                    }
+                )
+                break  # stop at first matching rule
+
+    if doc_items:
+        row_ptr += 2
+        ws_front.cell(row_ptr, 1, "Documentation checklist:").font = Font(
+            bold=True, underline="single"
+        )
+        row_ptr += 1
+
+        # Header row
+        headers = ["Account", "Name", "Comment", "Status"]
+        for col_idx, h in enumerate(headers, start=1):
+            cell = ws_front.cell(row_ptr, col_idx, h)
+            cell.font = Font(bold=True)
+        row_ptr += 1
+
+        # Dropdown for "Done"
+        dv = DataValidation(type="list", formula1='"Done"', allow_blank=True)
+        ws_front.add_data_validation(dv)
+
+        for item in doc_items:
+            acc = item["No"]
+            name = item["Name"]
+            msg = item["Message"]
+
+            # Account with hyperlink
+            acc_cell = ws_front.cell(row_ptr, 1, acc)
+            set_hyperlink(acc_cell, acc)
+
+            # Name + comment
+            ws_front.cell(row_ptr, 2, name)
+            ws_front.cell(row_ptr, 3, msg)
+
+            # Status dropdown
+            status_cell = ws_front.cell(row_ptr, 4)
+            dv.add(status_cell)
+
+            # Conditional formatting: if Status == "Done", make the row green
+            formula = f'$D{row_ptr}="Done"'
+            rule = FormulaRule(formula=[formula], fill=green_fill)
+            ws_front.conditional_formatting.add(f"A{row_ptr}:D{row_ptr}", rule)
+
             row_ptr += 1
 
     # Footer metadata
