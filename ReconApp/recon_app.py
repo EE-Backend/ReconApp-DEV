@@ -16,7 +16,7 @@ LOGO_PATH = STATIC_DIR / "logo.png"
 # ============================================
 # HEADER WITH LOGO + TITLE
 # ============================================
-col_logo, col_title = st.columns([1, 2])
+col_logo, col_title = st.columns([1, 9])
 
 with col_logo:
     if LOGO_PATH.exists():
@@ -89,5 +89,6 @@ if st.button("Generate Recon File", type="primary"):
     )
 
 st.caption("European Energy — Internal Tool")
+
 
 
