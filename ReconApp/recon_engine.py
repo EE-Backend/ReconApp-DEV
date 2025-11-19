@@ -373,16 +373,21 @@ def build_workbook(trial_balance_df, entries_df, map_dir, acct_to_code, code_to_
                 row_cursor += 1
                 block_start = row_cursor
             
-                # Header row: just "Account Total"
-                ws.cell(row=row_cursor, column=1, value="Account Total").font = Font(bold=True)
-                vcell = ws.cell(row=row_cursor, column=2, value=net_sum)
-                vcell.font = Font(bold=True)
-            
-                # Fill colors
-                ws.cell(row=row_cursor, column=1).fill = total_fill
-                ws.cell(row=row_cursor, column=2).fill = total_fill
-            
-                apply_borders(ws, block_start, row_cursor, 1, 2)
+                # First row: labels (Note header + Account Total label)
+                ws.cell(row=row_cursor, column=1, value="Note").font = Font(bold=True)
+                ws.cell(row=row_cursor, column=6, value="Account Total").font = Font(bold=True)
+                for c in range(1, 7):
+                    ws.cell(row=row_cursor, column=c).fill = total_fill
+                row_cursor += 1
+
+                # Second row: content - (See documentation) + total
+                ws.cell(row=row_cursor, column=1, value="(See documentation)")
+                vcell = ws.cell(row=row_cursor, column=6, value=net_sum)
+                vcell.number_format = "#,##0.00"
+                for c in range(1, 7):
+                    ws.cell(row=row_cursor, column=c).fill = entry_fill
+
+                apply_borders(ws, block_start, row_cursor, 1, 6)
                 row_cursor += 3
                 continue
 
