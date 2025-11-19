@@ -662,7 +662,7 @@ def finalize_workbook_to_bytes(
         # Long-term receivables
         (
             [
-                (234110, 234310),
+                (234110, 234120),
             ],
             "Add documentation for Long-term receivables",
         ),
@@ -688,7 +688,13 @@ def finalize_workbook_to_bytes(
             ],
             "Add documentation for Bank account",
         ),
-       
+        # Other Liabilities
+        (
+            [
+                (634010, 634011),
+            ],
+            "Add documentation for Other I/C Loans",
+        ),
         # Trade payables
         (
             [
