@@ -507,13 +507,235 @@ def finalize_workbook_to_bytes(
     if mismatch_accounts is None:
         mismatch_accounts = []
 
-    # FRONT PAGE
-    from warnings import filterwarnings
-    filterwarnings("ignore", message="Data Validation extension is not supported and will be removed")
+    # === FRONT PAGE LAYOUT & FORMATTING ===
+ws_front = wb.create_sheet("Frontpage", 0)
 
-    ws_front = wb.create_sheet("Frontpage", 0)
-    ws_front["A1"] = "EE Reconciliation Overview"
-    ws_front["A1"].font = Font(size=16, bold=True)
+# COLORS
+green_box = PatternFill("solid", fgColor="9AD29F")
+title_fill = PatternFill("solid", fgColor="F8CBAD")
+row_fill = PatternFill("solid", fgColor="FCE4D6")
+red_header_fill = PatternFill("solid", fgColor="EB3D3D")
+red_row_fill = PatternFill("solid", fgColor="FF7979")
+
+# Thin + thick borders
+thin = Side(border_style="thin", color="000000")
+thick = Side(border_style="medium", color="000000")
+
+def thick_outline(ws, top, bottom, left, right):
+    """Draw a thick border outline around a block."""
+    for r in range(top, bottom + 1):
+        for c in range(left, right + 1):
+            ws.cell(r, c).border = Border(top=thin, bottom=thin, left=thin, right=thin)
+
+    for c in range(left, right + 1):
+        ws.cell(top, c).border = Border(top=thick)
+        ws.cell(bottom, c).border = Border(bottom=thick)
+
+    for r in range(top, bottom + 1):
+        ws.cell(r, left).border = Border(left=thick)
+        ws.cell(r, right).border = Border(right=thick)
+
+
+# ==============================
+# 1. PLC BOX (TOP GREEN SECTION)
+# ==============================
+row = 2
+labels = ["ICP code", "Company name", "Accountant", "Controller", "Quarter & Year"]
+values = []
+
+# Lookup PLC info
+plc_row = None
+icp_key = ICP.upper().strip()
+if plc_norm is not None:
+    rows = plc_norm.loc[plc_norm["ICP code_norm"] == icp_key]
+    if not rows.empty:
+        rec = rows.iloc[0]
+        values = [
+            icp_key,
+            rec["Company name"],
+            rec["Accountant"],
+            rec["Controller"],
+            quarter_year
+        ]
+    else:
+        values = [icp_key, "Not found", "—", "—", quarter_year]
+
+# Write 5 rows
+for i, (lab, val) in enumerate(zip(labels, values)):
+    ws_front.cell(row + i, 1, lab).font = Font(bold=True)
+    ws_front.cell(row + i, 2, val)
+    ws_front.cell(row + i, 1).fill = green_box
+    ws_front.cell(row + i, 2).fill = green_box
+
+# Outline
+thick_outline(ws_front, row, row + 4, 1, 2)
+
+row += 7
+
+
+# ==============================================
+# 2. AUTOMATICALLY GENERATED COMMENTS + LOGO
+# ==============================================
+ws_front.cell(row, 1, "Automatically generated comments:").font = Font(bold=True)
+ws_front.cell(row, 1).fill = title_fill
+row += 1
+
+comment_start = row
+
+# Write comments
+ws_front.merge_cells(start_row=row-1, start_column=1, end_row=row-1, end_column=4)
+
+for comment in comments:
+    ws_front.cell(row, 1, f"• {comment}")
+    ws_front.cell(row, 1).fill = row_fill
+    row += 1
+
+# Draw comment box
+thick_outline(ws_front, comment_start - 1, row - 1, 1, 4)
+
+# Insert logo to the right
+logo_path = STATIC_DIR / "logo.png"
+if logo_path.exists():
+    img = openpyxl.drawing.image.Image(str(logo_path))
+    img.width = 160
+    img.height = 160
+    img.anchor = f"E{comment_start - 1}"
+    ws_front.add_image(img)
+
+row += 2
+
+
+# =================================================
+# 3. OUT-OF-BALANCE ACCOUNTS (RED SECTION)
+# =================================================
+if mismatch_accounts:
+    start = row
+    ws_front.cell(row, 1, "Accounts out of balance (TB vs entries):").font = Font(bold=True)
+    row += 1
+
+    headers = ["Account", "Name", "TB balance", "Entries sum", "Difference"]
+    for col, h in enumerate(headers, 1):
+        ws_front.cell(row, col, h).font = Font(bold=True)
+        ws_front.cell(row, col).fill = red_header_fill
+    row += 1
+
+    for m in mismatch_accounts:
+        acc = m["No"]
+        name = m["Name"]
+
+        c = ws_front.cell(row, 1, acc)
+        set_hyperlink(c, acc)
+
+        ws_front.cell(row, 2, name)
+        ws_front.cell(row, 3, m["tb_balance"]).number_format = "#,##0.00"
+        ws_front.cell(row, 4, m["entries_sum"]).number_format = "#,##0.00"
+        ws_front.cell(row, 5, m["difference"]).number_format = "#,##0.00"
+
+        for col in range(1, 6):
+            ws_front.cell(row, col).fill = red_row_fill
+
+        row += 1
+
+    thick_outline(ws_front, start, row - 1, 1, 5)
+    row += 2
+
+
+# ==============================================
+# 4. NEGATIVE BALANCES TABLE
+# ==============================================
+if not negatives.empty:
+    start = row
+    ws_front.cell(row, 1, "Negative balances (200000–399999):").font = Font(bold=True)
+    ws_front.cell(row, 1).fill = title_fill
+    row += 1
+
+    for _, r in negatives.iterrows():
+        acc = str(r["No."])
+        c = ws_front.cell(row, 1, acc)
+        set_hyperlink(c, acc)
+
+        ws_front.cell(row, 2, r["Name"])
+        v = ws_front.cell(row, 3, r["Balance at Date"])
+        v.number_format = "#,##0.00"
+
+        for col in range(1, 4):
+            ws_front.cell(row, col).fill = row_fill
+
+        row += 1
+
+    thick_outline(ws_front, start, row - 1, 1, 3)
+    row += 2
+
+
+# ==============================================
+# 5. POSITIVE BALANCES TABLE
+# ==============================================
+if not positives.empty:
+    start = row
+    ws_front.cell(row, 1, "Positive balances (400000+):").font = Font(bold=True)
+    ws_front.cell(row, 1).fill = title_fill
+    row += 1
+
+    for _, r in positives.iterrows():
+        acc = str(r["No."])
+        c = ws_front.cell(row, 1, acc)
+        set_hyperlink(c, acc)
+
+        ws_front.cell(row, 2, r["Name"])
+        v = ws_front.cell(row, 3, r["Balance at Date"])
+        v.number_format = "#,##0.00"
+
+        for col in range(1, 4):
+            ws_front.cell(row, col).fill = row_fill
+
+        row += 1
+
+    thick_outline(ws_front, start, row - 1, 1, 3)
+    row += 2
+
+
+# ==============================================
+# 6. DOCUMENTATION CHECKLIST TABLE
+# ==============================================
+if doc_items:
+    start = row
+    ws_front.cell(row, 1, "Documentation checklist:").font = Font(bold=True)
+    ws_front.cell(row, 1).fill = title_fill
+    row += 1
+
+    headers = ["Account", "Name", "Comment", "Status"]
+    for col, h in enumerate(headers, 1):
+        ws_front.cell(row, col, h).font = Font(bold=True)
+        ws_front.cell(row, col).fill = title_fill
+    row += 1
+
+    dv = DataValidation(type="list", formula1='"Done"', allow_blank=True)
+    ws_front.add_data_validation(dv)
+
+    for item in doc_items:
+        acc = item["No"]
+        name = item["Name"]
+        msg = item["Message"]
+
+        acc_cell = ws_front.cell(row, 1, acc)
+        set_hyperlink(acc_cell, acc)
+
+        ws_front.cell(row, 2, name)
+        ws_front.cell(row, 3, msg)
+
+        status = ws_front.cell(row, 4)
+        dv.add(status)
+
+        for col in range(1, 5):
+            ws_front.cell(row, col).fill = row_fill
+
+        rule = FormulaRule(formula=[f'$D{row}="Done"'], fill=green_box)
+        ws_front.conditional_formatting.add(f"A{row}:D{row}", rule)
+
+        row += 1
+
+    thick_outline(ws_front, start, row - 1, 1, 4)
+    row += 2
 
     # PLC (optional)
     plc_norm = None
