@@ -497,7 +497,6 @@ def finalize_workbook_to_bytes(
     trial_balance_df,
     entries_df,
     ICP,
-    quarter_year,
     plc_path=None,
     tolerance=TOLERANCE,
     mismatch_accounts=None,
@@ -524,7 +523,7 @@ def finalize_workbook_to_bytes(
             plc_df = pd.read_excel(plc_path, engine="openpyxl")
             plc_norm = plc_df.copy()
             plc_norm.columns = [c.strip() for c in plc_norm.columns]
-            plc_norm["ICP code_norm"] = plc_norm["ICP code"].astype(str).strip().str.upper()
+            plc_norm["ICP code_norm"] = plc_norm["ICP code"].astype(str).str.strip().str.upper()
             plc_norm["Company name"] = plc_norm["Company name"].astype(str).str.strip()
             plc_norm["Accountant"] = plc_norm["Accountant"].astype(str).str.strip()
             plc_norm["Controller"] = plc_norm["Controller"].astype(str).str.strip()
@@ -532,20 +531,17 @@ def finalize_workbook_to_bytes(
         plc_norm = None
 
     # Add PLC cards for selected ICP(s)
-selected_icps = [ICP]
-row_ptr = 3
+    selected_icps = [ICP]
+    row_ptr = 3
     for icp in selected_icps:
         icp_key = str(icp).strip().upper()
         row = plc_norm.loc[plc_norm["ICP code_norm"] == icp_key] if plc_norm is not None else pd.DataFrame()
-
         ws_front.cell(row_ptr, 1, "ICP code").font = Font(bold=True)
         ws_front.cell(row_ptr, 2, icp_key)
 
         ws_front.cell(row_ptr + 1, 1, "Company name").font = Font(bold=True)
         ws_front.cell(row_ptr + 2, 1, "Accountant").font = Font(bold=True)
         ws_front.cell(row_ptr + 3, 1, "Controller").font = Font(bold=True)
-        ws_front.cell(row_ptr + 4, 1, "Quarter & Year").font = Font(bold=True)
-        ws_front.cell(row_ptr + 4, 2, quarter_year)
 
         if not row.empty:
             ws_front.cell(row_ptr + 1, 2, row.iloc[0]["Company name"])
@@ -556,8 +552,8 @@ row_ptr = 3
             ws_front.cell(row_ptr + 2, 2, "—")
             ws_front.cell(row_ptr + 3, 2, "—")
 
-        apply_borders(ws_front, top=row_ptr, bottom=row_ptr + 4, left=1, right=2)
-        row_ptr += 7
+        apply_borders(ws_front, top=row_ptr, bottom=row_ptr + 3, left=1, right=2)
+        row_ptr += 6
 
     row_ptr += 1
     ws_front.cell(row_ptr, 1, "Automatically generated comments:").font = Font(bold=True, underline="single")
@@ -845,15 +841,7 @@ row_ptr = 3
 
 
 # === PUBLIC: generate_reconciliation_file ===
-def generate_reconciliation_file(
-    trial_balance_file,
-    entries_file,
-    icp_code,
-    quarter_year,
-    mapping_path=None,
-    plc_path=None,
-    tolerance=TOLERANCE
-):
+def generate_reconciliation_file(trial_balance_file, entries_file, icp_code, mapping_path=None, plc_path=None, tolerance=TOLERANCE):
     """
     Main entrypoint for Streamlit app.
     Inputs trial_balance_file and entries_file may be:
@@ -895,19 +883,14 @@ def generate_reconciliation_file(
 
     # Finalize & get bytes
     bio = finalize_workbook_to_bytes(
-    wb,
-    sheet_status,
-    account_anchor,
-    trial_balance,
-    entries,
-    icp_code,
-    quarter_year,
-    plc_path=plc_path,
-    tolerance=tolerance,
-    mismatch_accounts=mismatch_accounts,
-)
-
-# correct way to attach name (optional — Streamlit doesn't use this)
-bio.name = f"Recon File {icp_code} {quarter_year}.xlsx"
-
+        wb,
+        sheet_status,
+        account_anchor,
+        trial_balance,
+        entries,
+        icp_code,
+        plc_path=plc_path,
+        tolerance=tolerance,
+        mismatch_accounts=mismatch_accounts,
+    )
     return bio
