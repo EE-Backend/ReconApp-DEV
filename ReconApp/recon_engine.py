@@ -176,7 +176,10 @@ def add_pl_balance_sheet(wb, trial_balance_df, code_to_meta):
         - total_fill
         - green_fill / red_fill for control line
     """
-    ws = wb.create_sheet("PL & Balance", 1)  # After Trial Balance
+    # Insert PL & Balance right after TB
+    pl_index = wb.sheetnames.index("Trial Balance (YTD)") + 1
+    ws = wb.create_sheet("PL & Balance", pl_index)
+
 
     # === Group mapping layouts (your screenshots) ===
     PL_LAYOUT = [
