@@ -633,8 +633,8 @@ def finalize_workbook_to_bytes(
     if logo_path.exists():
         try:
             logo = Image(str(logo_path))
-            logo.width = 160   # adjust if needed
-            logo.height = 160
+            logo.width = 130   # adjust if needed
+            logo.height = 130
             ws_front.add_image(logo, "D2")  # position on the sheet
         except Exception:
             pass  # Don't break the app if the logo fails
