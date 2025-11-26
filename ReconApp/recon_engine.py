@@ -6,9 +6,9 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Border, Side
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.formatting.rule import FormulaRule
+from openpyxl.drawing.image import Image
 import openpyxl.utils
 import time
-from openpyxl.drawing.image import Image
 
 
 
@@ -627,7 +627,19 @@ def finalize_workbook_to_bytes(
     apply_borders(ws_front, top=comments_top, bottom=comments_bottom, left=1, right=1)
 
     row_ptr = comments_bottom + 2
+    # --- ✅ INSERT EE LOGO HERE ✅ ---
+    logo_path = STATIC_DIR / "logo.png"
+    if logo_path.exists():
+        try:
+            logo = Image(str(logo_path))
+            logo.width = 140   # adjust if needed
+            logo.height = 140
+            ws_front.add_image(logo, "C12")  # position on the sheet
+        except Exception:
+            pass  # Don't break the app if the logo fails
+    # --- ✅ END LOGO BLOCK ✅ ---
 
+    
     # === Helper for hyperlinks ===
     def set_hyperlink(cell, acc_no):
         acc = str(acc_no)
@@ -636,21 +648,6 @@ def finalize_workbook_to_bytes(
             sheet_ref = f"'{sheet_name}'" if not sheet_name.isalnum() else sheet_name
             cell.hyperlink = f"#{sheet_ref}!A{anchor_row}"
             cell.style = "Hyperlink"
-
-    # --- Insert EE Logo ---
-    logo_path = STATIC_DIR / "logo.png"
-    if logo_path.exists():
-        try:
-            logo = Image(str(logo_path))
-            # Optional: scale it down a bit
-            logo.width = 140
-            logo.height = 140
-            # Position it
-            ws_front.add_image(logo, "B12")
-        except Exception as e:
-            pass  # Fail silently, logo is not critical
-
-
     
     # === 1) ACCOUNTS OUT OF BALANCE (RED BLOCK) ===
     if mismatch_accounts:
