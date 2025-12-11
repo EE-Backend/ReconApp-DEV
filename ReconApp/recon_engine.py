@@ -17,7 +17,7 @@ TOLERANCE = 0.001
 # By default mapping and plc files are expected in ./static/
 BASE_DIR = Path(__file__).parent
 STATIC_DIR = BASE_DIR / "static"
-DEFAULT_MAPPING = STATIC_DIR / "mapping_data3.xlsx"
+DEFAULT_MAPPING = STATIC_DIR / "mapping_data4.xlsx"
 DEFAULT_PLC = STATIC_DIR / "PLC_data.xlsx"
 
 
@@ -87,7 +87,7 @@ def load_mapping(mapping_path=None):
     book = pd.read_excel(mapping_path, sheet_name=None)
 
     if "account_mapping" not in book or "mapping_directory" not in book:
-        raise KeyError("mapping_data3.xlsx must include sheets 'account_mapping' and 'mapping_directory'")
+        raise KeyError("mapping_data4.xlsx must include sheets 'account_mapping' and 'mapping_directory'")
 
     map_accounts = book["account_mapping"].rename(columns={"Mapping": "code"}).copy()
     map_dir = book["mapping_directory"].copy()
@@ -319,9 +319,9 @@ def add_pl_balance_sheet(wb, trial_balance_df, code_to_meta):
                 ws.cell(row, 2, "")
                 tab_cell = ws.cell(row, 5, "")
                 tab_cell.fill = entry_fill
-    
-                # Track row
-                desc_row[desc] = row
+
+                # NEW LINE: track this equity Total profit row
+                desc_row["Total profit (Equity)"] = row
     
                 row += 1
                 continue
@@ -462,7 +462,7 @@ def add_pl_balance_sheet(wb, trial_balance_df, code_to_meta):
     r39 = code_row["39"]
 
     # Total equity = SUM(20–23) + Total profit
-    r_tp_equity = desc_row["Total profit"]  # the new one inside Equity
+    r_tp_equity = desc_row["Total profit (Equity)"]
     set_formula("Total equity", f"=SUM({d_ref(r20)}:{d_ref(r_tp_equity)})")
 
 
