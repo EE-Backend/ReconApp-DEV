@@ -686,7 +686,7 @@ def remove_internal_zeroes(df, tol=TOLERANCE):
 
         # Pair with an existing opposite amount if available
         if opp in box and box[opp]:
-            j = box[opp].pop(0)
+            j = box[opp].pop(0) #Bruger FIFO logik, for LIFO, fjern "0" i .pop(0)
             keep[i] = False
             keep[j] = False
             if not box[opp]:
