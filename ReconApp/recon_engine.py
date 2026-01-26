@@ -564,7 +564,7 @@ def add_pl_balance_sheet(wb, trial_balance_df, code_to_meta):
 
 
 # === INTERNAL ZEROING ===
-def remove_internal_zeroes(df, tol=TOLERANCE):
+def remove_internal_zeroes2(df, tol=TOLERANCE):
     """
     Remove internal cancelling entries when:
       - ICP CODE is the same (or empty/NaN in both lines), and
@@ -631,6 +631,95 @@ def remove_internal_zeroes(df, tol=TOLERANCE):
     df = df.drop(columns=["_icp_norm", "_gaap_norm"], errors="ignore").reset_index(drop=True)
 
     return df
+
+
+# === INTERNAL ZEROING ===
+def remove_internal_zeroes(df, tol=TOLERANCE):
+    """
+    Remove internal cancelling entries when:
+      - ICP CODE is the same (or empty/NaN in both lines), and
+      - GAAP Code is the same (or empty/NaN in both lines), and
+      - Amounts sum to ~0 within tolerance.
+
+    Document No. is intentionally ignored.
+
+    Then, within each (ICP, GAAP) bucket, perform cumulative zero-block
+    trimming: drop entries up to the last point where that bucket's
+    cumulative sum returns to (approx.) zero.
+
+    This version replaces the O(n^2) pairwise loop with an O(n) "hash box"
+    approach per (ICP, GAAP) bucket for much better performance on large accounts.
+    """
+    if df.empty:
+        return df
+
+    # Sort chronologically (keeps cumulative-trim logic meaningful)
+    df = df.sort_values("Posting Date", ascending=True).reset_index(drop=True)
+
+    def _norm_key(x):
+        """Normalize ICP/GAAP for grouping & equality: treat NaN/empty as ''."""
+        if pd.isna(x):
+            return ""
+        return str(x).strip()
+
+    # Normalized keys used for both pairwise and cumulative logic
+    df["_icp_norm"] = df["ICP CODE"].apply(_norm_key) if "ICP CODE" in df.columns else ""
+    df["_gaap_norm"] = df["GAAP Code"].apply(_norm_key) if "GAAP Code" in df.columns else ""
+
+    # ---------- 1) Fast pairwise zero removal within same ICP/GAAP ----------
+    # Work in integer cents to avoid float equality issues
+    # (rounding to 2 decimals matches your to_float() behavior)
+    amt = pd.to_numeric(df["Amount (LCY)"], errors="coerce").fillna(0.0).round(2)
+    df["_amt_cents"] = (amt * 100).round().astype("int64")
+
+    keep = [True] * len(df)
+
+    # boxes[(icp, gaap)][amt_cents] = list of row indices waiting to be paired
+    boxes = {}
+
+    for i in range(len(df)):
+        key = (df.loc[i, "_icp_norm"], df.loc[i, "_gaap_norm"])
+        a = int(df.loc[i, "_amt_cents"])
+
+        box = boxes.setdefault(key, {})
+        opp = -a
+
+        # Pair with an existing opposite amount if available
+        if opp in box and box[opp]:
+            j = box[opp].pop()
+            keep[i] = False
+            keep[j] = False
+            if not box[opp]:
+                del box[opp]
+        else:
+            box.setdefault(a, []).append(i)
+
+    df = df[keep].copy()
+    df = df.drop(columns=["_amt_cents"], errors="ignore")
+
+    # ---------- 2) Cumulative zero trimming per (ICP, GAAP) bucket ----------
+    def _trim_group(g):
+        if g.empty:
+            return g
+        g = g.copy()
+
+        # Use float running sum; round to 2 decimals to match financial display precision
+        g["cum"] = pd.to_numeric(g["Amount (LCY)"], errors="coerce").fillna(0.0).cumsum().round(2)
+
+        zero_idx = g.index[g["cum"].abs() < tol].tolist()
+        if zero_idx:
+            last_zero = zero_idx[-1]
+            g = g.loc[g.index > last_zero]
+
+        return g.drop(columns=["cum"])
+
+    df = df.groupby(["_icp_norm", "_gaap_norm"], group_keys=False).apply(_trim_group)
+
+    # Clean up helper columns and reindex
+    df = df.drop(columns=["_icp_norm", "_gaap_norm"], errors="ignore").reset_index(drop=True)
+
+    return df
+
 
 
 
